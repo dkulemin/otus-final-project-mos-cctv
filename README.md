@@ -18,10 +18,14 @@ https://www.findlatitudeandlongitude.com/
 
 ### Запуск контейнеров
 
+```bash
 docker compose up
+```
 
 ### Компиляция приложения
 
+```bash
 docker exec -it spark-master /bin/bash
 root@PID:/opt/spark# cd /app
 root@PID:/app# sbt assembly
+```
