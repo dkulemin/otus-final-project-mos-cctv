@@ -10,12 +10,6 @@ object MosCCTV {
             .appName("MosCCTV")
             .getOrCreate()
 
-        // val dbConnection = spark.read.format("jdbc")
-        //     .option("url","jdbc:postgresql://postgres/postgres") 
-        //     .option("user","user")
-        //     .option("password","password")
-        //     .option("driver","org.postgresql.Driver")
-
         val properties = new Properties()
         properties.setProperty("user","user")
         properties.setProperty("password","password")
@@ -132,40 +126,5 @@ object MosCCTV {
             .write
             .mode("overwrite")
             .jdbc("jdbc:postgresql://postgres/postgres", "closest_cctv", properties)
-
-
-
-        // val areas = objectsWithCCTV.select("adm_area").distinct().collect()
-
-        // areas.zipWithIndex.foreach{
-        //     case (area, idx) => {
-        //         val mode = if (idx == 0) "overwrite" else "append"
-        //         val areaVal = area.get(0)
-        //         val objectsFiltered = objectsWithCCTV
-        //             .filter($"adm_area" === areaVal && $"has_cctv" === 0 && !$"building_coordinates".isNull)
-        //         val camerasFiltered = camerasDF.filter($"AdmArea" === areaVal)
-        //         val objectsFilteredNumPartitions = objectsFiltered.rdd.getNumPartitions
-        //         val camerasFilteredNumPartitions = camerasFiltered.rdd.getNumPartitions
-        //         objectsFiltered.repartition(objectsFilteredNumPartitions)
-        //         camerasFiltered.repartition(camerasFilteredNumPartitions)
-
-        //         objectsFiltered.crossJoin(camerasFiltered)
-        //             .select(
-        //                 $"obj_unom",
-        //                 $"addr",
-        //                 $"adm_area",
-        //                 haversineDistance($"building_coordinates", $"geoData.coordinates").alias("distance")
-        //             )
-        //             .groupBy(
-        //                 "obj_unom",
-        //                 "addr",
-        //                 "adm_area"
-        //             )
-        //             .agg(F.min("distance").alias("closest_cctv_distance_mt"))
-        //             .write
-        //             .mode(mode)
-        //             .jdbc("jdbc:postgresql://postgres/postgres", "closest_cctv", properties)
-        //     }
-        // }
     }
 }
