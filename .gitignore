@@ -10,7 +10,8 @@ __pycache__
 !/data/.gitkeep
 /logs/*
 !/logs/.gitkeep
-/project
+/project/*
+!/project/plugins.sbt
 /target/.history3
 /target/scala-2.12/classes/*
 /target/scala-2.12/sync/*
