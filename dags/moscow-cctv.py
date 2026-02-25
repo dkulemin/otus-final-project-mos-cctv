@@ -1,7 +1,51 @@
+from typing import List
 import datetime
+import json
+import logging
+
 from airflow import DAG
+from airflow.models import Variable
+# from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
-from airflow.operators.bash import BashOperator
+import requests
+
+
+TOP_ROWS = 1000
+
+def ingest(name: str, id: int, fields: List[str]):
+    api_key = Variable.get("API_KEY")
+
+    with open("/app/data/{name}.json".format(name=name)) as file:
+        last_row_num = json.loads(file.readlines()[-1])['Number']
+
+    try:
+        rows = requests.get(
+            url="https://apidata.mos.ru/v1/datasets/{id}/count".format(id=id),
+            params={"api_key": api_key}
+        ).json()
+        for i in range(last_row_num, rows, TOP_ROWS):
+            data = [
+                {"Number": resp["Number"] + i, **resp["Cells"]}
+                for resp
+                in requests.post(
+                    url="https://apidata.mos.ru/v1/datasets/{id}/rows".format(id=id),
+                    json=fields,
+                    params={
+                        "api_key": api_key,
+                        "$skip": i,
+                        "$top": TOP_ROWS,
+                        "$inlinecount": "allpages",
+                    }
+                ).json()
+            ]
+            with open("/app/data/{name}.json".format(name=name), "a") as file:
+                for row in data:
+                    file.write(json.dumps(row, ensure_ascii=False) + '\n')
+                logging.info("Ingested %s rows" % len(data))
+    except:
+        logging.info("Ingested 0 rows")
+
 
 with DAG(
     dag_id = "moscow-cctv",
@@ -11,9 +55,29 @@ with DAG(
     default_args = {"retries" : 0}
 ) as dag:
 
-    bash_ls = BashOperator(
-        task_id="bash_ls",
-        bash_command="ls /app/data"
+    # bash_ls = BashOperator(
+    #     task_id="bash_ls",
+    #     bash_command="ls /app/data"
+    # )
+
+    ingest_objects = PythonOperator(
+        task_id = "ingest_objects",
+        python_callable=ingest,
+        op_kwargs={
+            "name": "objects_3_1598",
+            "id": 60562,
+            "fields": ["UNOM", "ADDRESS", "SIMPLE_ADDRESS", "DISTRICT", "ADM_AREA", "geoData"]
+        }
+    )
+
+    ingest_cameras = PythonOperator(
+        task_id = "ingest_cameras",
+        python_callable=ingest,
+        op_kwargs={
+            "name": "cameras",
+            "id": 1500,
+            "fields": ["ID", "AdmArea", "District", "Address", "SimpleAddress", "UNOM", "geoData"]
+        }
     )
 
     cctv_pg_write = SparkSubmitOperator(
@@ -27,3 +91,5 @@ with DAG(
         verbose=True,
         files="/app/data/cameras.json,/app/data/objects_3_1598.json"
     )
+
+    [ingest_objects, ingest_cameras] >> cctv_pg_write  # type: ignore
